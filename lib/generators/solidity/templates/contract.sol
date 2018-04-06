@@ -53,10 +53,10 @@ contract <%= contract_name  %> is Owned {
     return <%= struct_name_lower  %>Addresess;
   }
 
-  function get<%= struct_name  %>(address _<%= struct_address_attribute  %>) public view returns(<%= struct_return_attributes_type.join(', ') %>) {
-    return (
-      _<%= struct_address_attribute  %>, 
-      <%= struct_return_attributes.join(",\n      ") %>);
+  function get<%= struct_name  %>(address _<%= struct_address_attribute  %>) public view returns(<%= struct_attributes_for_return_type.join(', ') %>) {
+    return ( 
+      <%= struct_attributes_for_return.join(",\n      ") %>,
+      _<%= struct_address_attribute  %>);
   }
 
   function set<%= struct_name  %>(
@@ -69,9 +69,9 @@ contract <%= contract_name  %> is Owned {
    
     <%= struct_name_lower  %>Addresess.push(_<%= struct_address_attribute  %>) - 1;   
     
-    emit <%= event_name(:struct)  %>(
-      "Create <%= struct_name  %>",
-      <%= event_attributes_parameters_passing(:struct).join(",\n      ")  %>);
+    emit <%= event_name(:struct)  %>(      
+      <%= event_attributes_parameters_passing(:struct).join(",\n      ") %>,
+      "Create <%= struct_name  %>");
     
     return (_<%= struct_address_attribute  %>);
   }

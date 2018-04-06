@@ -2,11 +2,11 @@
 
 This is a simple web demo for block chain. that works with Solidity, Truffle and React JS.
 
-## Configration
-0. Install curl
+# Configration
+## Install curl
   - `sudo apt install curl`
 
-0. Install Go Language 
+## Install Go Language 
   - `curl -o https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-amd64.tar.gz`
   - `sudo tar -xvg go1.9.2.linux-amd64.tar.gz`
   - `sudo mv go /usr/local`
@@ -17,42 +17,42 @@ This is a simple web demo for block chain. that works with Solidity, Truffle and
   - `source .bashrc`
   - `go version`
 
-0. Install Ethereum
+## Install Ethereum
   - `git clone https://github.com/ethereum/go-ethereum.git`
   - `cd go-ethereum`
   - `git tag`
   - `git checkout tags/v1.8.1 -b dev_ethereum1.8.1`
   - `make all`
 
-0. Install node and npm
+## Install node and npm
   - `curl -sL https://deb.nodesource.com/setup_9.x | sudo -E bash -`
   - `sudo apt-get install -y nodejs`
   - `sudo apt-get install -y build-essential` 
   - `sudo node -v`
   - `sudo npm -v` 
 
-0. Install truffle 
+## Install truffle 
   - `sudo npm install -g truffle`
 
-0. Install testrpc or ganache-cli 
+## Install testrpc or ganache-cli 
   - `sudo npm install -g ethereumjs-testrpc`
   - `sudo npm install -g ganache-cli`  
 
-0. Install solc 
+## Install solc 
   - `cd /usr/lib/node_modules/truffle/`
   - `sudo npm install solc@0.4.21`
 
 
 
-## Running
+# Running
 
 
-0. Clone this repo
-0. `npm install`
-0. Make sure `testrpc\ganache-cli` is running on its default port. Then:
-0. The Web3 location will be picked up from the `truffle.js` file.
-0. The GAS value will be picked up from the `truffle.js` file.
-0. Need to set Contract deployment address in  `migrations/2_deploy_contracts.js` file.
+## Clone this repo
+## `npm install`
+## Make sure `testrpc\ganache-cli` is running on its default port. Then:
+## The Web3 location will be picked up from the `truffle.js` file.
+## The GAS value will be picked up from the `truffle.js` file.
+## Need to set Contract deployment address in  `migrations/2_deploy_contracts.js` file.
   - `truffle compile` - Compile contracts
   - `truffle migrate` - Migrate contracts
   - `truffle migrate --reset` - Migrate already migrated contracts

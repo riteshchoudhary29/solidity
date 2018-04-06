@@ -11,9 +11,23 @@ class SolidityGenerator < Rails::Generators::Base
     "SolidityApps/#{contract_name}"
   end  
 
-  def default_address
-    #system("testrpc")
-  end  
+  def extract_attribute_info(attr_info = 'address:owner')
+    value_mapping = { bool: false, int: 0 , uint: 0, fixed: 0.0, ufixed: 0.0, address: '\'ADD ADDDRESS\'', byte: '"Test"' }
+    attribute_default_value = 'ADD DEFAULT VALUE FOR ' << attr_info.first << ' : ' << attr_info.last.camelize(:lower)
+    attribute_info = attr_info.split(":")
+    attribute_type_info = attribute_info.first.scan(/u?int|u?fixed|byte|address|bool/).first
+     attribute_type_info
+
+    attribute_type = attribute_info.first
+    attribute_name = attribute_info.last.camelize(:lower)
+    attribute_value = value_mapping[attribute_type_info.to_sym] || attribute_default_value
+    [attribute_type, attribute_name, attribute_value]  
+  end
+
+  def extract_attributes(attributes_list = [], add_attributes = [], remove_attributes = [])
+    (attributes_list + add_attributes - remove_attributes).collect{|attr_info| extract_attribute_info(attr_info) }.compact 
+  end
+
 
   # contract helper methods
 
@@ -25,47 +39,39 @@ class SolidityGenerator < Rails::Generators::Base
     contract.camelize(:lower)
   end
 
-  def contract_attributes
-    attributes.collect{|attribute| attribute.split(":") }
+  def contract_attributes_raw
+    attributes
   end
 
-  def contract_attributes_without_owner
-    contract_attributes.select{|attr_info| !attr_info.last.eql? 'owner'}
+  def contract_attributes(add_attributes = [], remove_attributes = [])
+    extract_attributes(contract_attributes_raw, add_attributes, remove_attributes).collect do |attribute_info| 
+      if block_given?
+        yield(attribute_info[0], attribute_info[1], attribute_info[2]) 
+      else  
+        attribute_info
+      end 
+    end  
   end
+
 
   def contract_attributes_declaration
-    contract_attributes_without_owner.collect{ |attr_info| "#{attr_info.first} public #{attr_info.last.camelize(:lower) };"}
+    contract_attributes([],['address:owner']){ |attr_type, attr_name, attr_value| "#{attr_type} public #{attr_name};" } 
   end
 
   def contract_attributes_parameters
-    contract_attributes.collect{ |attr_info| "#{attr_info.first} _#{attr_info.last.camelize(:lower) }" }
-  end
-
-  def contract_attributes_parameter_values
-    contract_attributes.collect do |attr_info| 
-      case attr_info.first.scan(/u?int|u?fixed|byte|address|bool/).first
-      when 'bool'
-        false
-      when 'int', 'uint'
-        0
-      when 'fixed', 'ufixed'
-        0.0
-      when 'address'
-        '\'ADD ADDDRESS\''
-      when 'byte'
-        '""'
-      else
-        'ADD DEFAULT VALUE FOR ' << attr_info.first << ' : ' << attr_info.last.camelize(:lower)
-      end
-    end
+    contract_attributes{ |attr_type, attr_name, attr_value| "#{attr_type} _#{attr_name}" } 
   end
 
   def contract_attributes_assignment
-    contract_attributes.collect{ |attr_info| "#{attr_info.last.camelize(:lower)} = _#{attr_info.last.camelize(:lower) };" }
+    contract_attributes{ |attr_type, attr_name, attr_value| "#{attr_name} = _#{attr_name};" } 
   end
 
+  def contract_attributes_parameter_values
+    contract_attributes{ |attr_type, attr_name, attr_value| attr_value  } 
+  end
 
   # struct helper methods
+
   def struct_name?
     !options['struct'].blank?
   end
@@ -82,82 +88,113 @@ class SolidityGenerator < Rails::Generators::Base
     struct_name_lower.pluralize
   end
 
-  def struct_attributes
-    (options['struct'][1..-1]||[]).collect{|attribute| attribute.split(":") }
-  end  
-
-  def struct_attributes_with_address
-    [['address',struct_address_attribute]] + struct_attributes
-  end  
-
   def struct_address_attribute
     "#{struct_name_lower}Address"
   end  
 
-  def struct_attributes_parameters
-    struct_attributes.collect{ |attr_info| "#{attr_info.first} _#{attr_info.last.camelize(:lower) }" }
+  def struct_attributes_raw
+    (options['struct'][1..-1]||[])
+  end
+
+  def struct_attributes(add_attributes = [], remove_attributes = [])
+    extract_attributes(struct_attributes_raw, add_attributes, remove_attributes).collect do |attribute_info| 
+      if block_given?
+        yield(attribute_info[0], attribute_info[1], attribute_info[2]) 
+      else  
+        attribute_info
+      end 
+    end  
   end
 
   def struct_attributes_declaration
-    struct_attributes.collect{ |attr_info| "#{attr_info.first} #{attr_info.last.camelize(:lower) };"}
+    struct_attributes{ |attr_type, attr_name, attr_value| "#{attr_type} #{attr_name};" } 
+  end
+    
+  def struct_attributes_parameters
+    struct_attributes{ |attr_type, attr_name, attr_value| "#{attr_type} _#{attr_name}" } 
   end
 
   def struct_attributes_assignment
-    struct_attributes.collect{ |attr_info| "#{struct_name_lower}.#{attr_info.last.camelize(:lower)} = _#{attr_info.last.camelize(:lower) };" }
+    struct_attributes{ |attr_type, attr_name, attr_value| "#{struct_name_lower}.#{attr_name} = _#{attr_name};" } 
   end
 
+  def struct_attributes_parameter_values
+    struct_attributes{ |attr_type, attr_name, attr_value| attr_value  } 
+  end
+
+
+  def struct_attributes_for_return
+    struct_attributes{ |attr_type, attr_name, attr_value| "#{struct_name_mapping}[_#{struct_address_attribute}].#{attr_name}" } 
+  end
+
+  def struct_attributes_for_return_type
+    struct_attributes(["address:#{struct_address_attribute}"],[]){ |attr_type, attr_name, attr_value| attr_type } 
+  end
+
+
   def struct_attributes_js_input
-    struct_attributes.collect{ |attr_info| "<div>#{attr_info.last.humanize} : <input type=\"text\" ref={ x => this._input#{attr_info.last.camelize } = x } /></div>" }
+    struct_attributes do |attr_type, attr_name, attr_value| 
+      <<-HTML
+        <div className='form-group'>
+          <label for='input#{attr_name.camelize}'>#{attr_name.humanize}:</label>
+          <input type='text' className='form-control' id='input#{attr_name.camelize}' placeholder='Enter #{attr_name.humanize}' name='input#{attr_name.camelize}' ref={ x => this._input#{attr_name.camelize } = x } />
+        </div>
+      HTML
+    end 
   end
 
   def struct_attributes_js_assignment
-    struct_attributes.collect{ |attr_info| "const #{attr_info.last.camelize(:lower)} = this._input#{attr_info.last.camelize }.value" }
+    struct_attributes do |attr_type, attr_name, attr_value| "const  #{attr_name}= this._input#{attr_name.camelize}.value" end 
   end
 
   def struct_attributes_js_parameters
-    struct_attributes.collect{ |attr_info| "#{attr_info.last.camelize(:lower) }" }
+    struct_attributes{ |attr_type, attr_name, attr_value| attr_name } 
   end
 
-
-  def struct_return_attributes
-    struct_attributes.collect{ |attr_info| "#{struct_name_mapping}[_#{struct_address_attribute}].#{attr_info.last.camelize(:lower)}"}
-  end
-
-  def struct_return_attributes_type
-    struct_attributes_with_address.collect{ |attr_info| "#{attr_info.first}"}
-  end
 
 
   # event helper methods
 
   def event_name(event_type = :contract)
-    send("#{event_type}_name".to_sym) << "Event" 
+    { contract: "#{contract_name}Event", struct: "#{struct_name}Event"}[event_type]
   end
 
-  def event_attributes(event_type = :contract)
-    [['bytes32','event_type']] + send("#{event_type}_attributes".to_sym)
+
+  def event_attributes_raw(event_type = :contract)
+    { contract: contract_attributes_raw, struct: struct_attributes_raw }[event_type]
+  end
+
+
+  def event_attributes(event_type = :contract, add_attributes = ['bytes32:event_type'], remove_attributes = [])
+    extract_attributes(event_attributes_raw(event_type), add_attributes, remove_attributes).collect do |attribute_info| 
+      if block_given?
+        yield(attribute_info[0], attribute_info[1], attribute_info[2]) 
+      else  
+        attribute_info
+      end 
+    end  
   end
 
   def event_attributes_parameters(event_type = :contract)
-    event_attributes(event_type).collect{ |attr_info| "#{attr_info.first} _#{attr_info.last.camelize(:lower) }" }
+    event_attributes(event_type){ |attr_type, attr_name, attr_value| "#{attr_type} _#{attr_name}" } 
   end
 
   def event_attributes_parameters_passing(event_type = :contract)
-    send("#{event_type}_attributes".to_sym).collect{ |attr_info| "_#{attr_info.last.camelize(:lower) }" }
+    event_attributes(event_type,[]){ |attr_type, attr_name, attr_value| "_#{attr_name}" } 
   end
 
-
-
   def create_contract
-    directory 'solidity_app_template', base_path
-    template "contract.sol", "#{base_path}/contracts/#{contract_name}.sol"
+    #directory 'solidity_app_template', base_path
     template "README.md", "#{base_path}/README.md"
-    template "truffle.js", "#{base_path}/truffle.js"  
-    template "migrations/2_deploy_contracts.js", "#{base_path}/migrations/2_deploy_contracts.js"
+    template "truffle.js", "#{base_path}/truffle.js"
     template "src/App.js", "#{base_path}/src/App.js"    
     template "src/utils/getWeb3.js", "#{base_path}/src/utils/getWeb3.js"
+    template "contract.sol", "#{base_path}/contracts/#{contract_name}.sol"
+    template "migrations/2_deploy_contracts.js", "#{base_path}/migrations/2_deploy_contracts.js"
     template "components/TemplateView/TemplateView.js", "#{base_path}/src/components/#{contract_name}View/#{contract_name}View.js"
     template "components/TemplateView/TemplateView.css", "#{base_path}/src/components/#{contract_name}View/#{contract_name}View.css"
+    template "test/contract.js", "#{base_path}/test/#{contract_name_lower}.js"
+    template "test/TestContract.sol", "#{base_path}/test/Test#{contract_name}.sol"
   end
 
 end
