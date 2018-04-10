@@ -184,7 +184,7 @@ class SolidityGenerator < Rails::Generators::Base
   end
 
   def create_contract
-    #directory 'solidity_app_template', base_path
+    directory 'solidity_app_template', base_path
     template "README.md", "#{base_path}/README.md"
     template "truffle.js", "#{base_path}/truffle.js"
     template "src/App.js", "#{base_path}/src/App.js"    
